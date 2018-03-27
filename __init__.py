@@ -40,7 +40,6 @@ class Application(object):
 class Wappalyzer(requests.Session):
     def __init__(self, url, filename='apps.json'):
         super().__init__()
-        self.verify = False
 
         file = os.path.join(os.getcwd(), os.path.dirname(__file__), filename)
         if not os.path.exists(file):
@@ -272,7 +271,6 @@ class Wappalyzer(requests.Session):
         print('[wappalyzer {}] [{}] {}'.format(type, source, message))
 
     def getSimple(self):
-        # noinspection PyTypeChecker
         apps = self.analyze(self.data)
         simple_result = {}
 
