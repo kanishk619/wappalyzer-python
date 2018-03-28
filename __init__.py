@@ -32,7 +32,7 @@ class Application(object):
     def getConfidence(self):
         total = 0
         for id in self.confidence:
-            total += self.confidence[id]
+            total += int(self.confidence[id])
         self.confidenceTotal = min(total, 100)
         return self.confidenceTotal
 
@@ -57,7 +57,8 @@ class Wappalyzer(requests.Session):
             for j in self.jsPatterns[i]:
                 js.update({i: {j: {}}})
         self.data.js = js
-        self.data.scripts = [script['src'] for script in BeautifulSoup(self.data.text, 'html.parser').find_all('script', {'src': True})]
+        self.data.scripts = [script['src'] for script in
+                             BeautifulSoup(self.data.text, 'html.parser').find_all('script', {'src': True})]
         self.data.headers = {i.lower(): j for i, j in self.data.headers.items()}
 
     def downloadWappalyzerDB(self, file):
@@ -71,9 +72,9 @@ class Wappalyzer(requests.Session):
     def asArray(self, value):
         return value if isinstance(value, list) else [value]
 
-    def analyze(self, data):
+    def analyze(self):
         apps = {}
-        matches = re.search('<html[^>]*[: ]lang="([a-z]{2}((-|_)[A-Z]{2})?)"', data.text, re.IGNORECASE)
+        matches = re.search('<html[^>]*[: ]lang="([a-z]{2}((-|_)[A-Z]{2})?)"', self.data.text, re.IGNORECASE)
         language = None
         if matches:
             language = matches.groups()[0]
@@ -82,22 +83,22 @@ class Wappalyzer(requests.Session):
         for appName in self.apps:
             apps[appName] = Application(appName, self.apps[appName])
             app = apps[appName]
-            if data.text:
-                self.analyzeHtml(app, data.text)
-                self.analyzeMeta(app, data.text)
+            if self.data.text:
+                self.analyzeHtml(app, self.data.text)
+                self.analyzeMeta(app, self.data.text)
 
-            if data.scripts:
-                self.analyzeScripts(app, data.scripts)
+            if self.data.scripts:
+                self.analyzeScripts(app, self.data.scripts)
 
-            if data.headers:
-                self.analyzeHeaders(app, data.headers)
+            if self.data.headers:
+                self.analyzeHeaders(app, self.data.headers)
 
-            if hasattr(data, 'env'):
-                self.analyzeEnv(app, data.env)
+            if hasattr(self.data, 'env'):
+                self.analyzeEnv(app, self.data.env)
 
-        if data.js:
-            for appName in data.js:
-                self.analyzeJs(apps[appName], data.js[appName])
+        if self.data.js:
+            for appName in self.data.js:
+                self.analyzeJs(apps[appName], self.data.js[appName])
 
         for appName, app in apps.copy().items():
             if not app.detected or not app.getConfidence():
@@ -176,7 +177,8 @@ class Wappalyzer(requests.Session):
                             checkImplies = True
 
                         for id in app.confidence:
-                            apps[implied['string']].confidence[id + ' implied by ' + appName] = app.confidence[id] * (implied['confidence']/100 if 'confidence' in implied else 1)
+                            apps[implied['string']].confidence[id + ' implied by ' + appName] = app.confidence[id] * int(
+                                int(implied['confidence']) / 100 if 'confidence' in implied else 1)
 
     def analyzeUrl(self, app: Application, url):
         patterns = self.parsePatterns(app.props['url'])
@@ -235,7 +237,8 @@ class Wappalyzer(requests.Session):
 
     def addDetected(self, app: Application, pattern, type, value, key=''):
         app.detected = True
-        app.confidence[type + ' ' + (key + ' ' if key else '') + pattern['regex']] = pattern['confidence'] if 'confidence' in pattern else 100
+        app.confidence[type + ' ' + (key + ' ' if key else '') + pattern['regex']] = pattern[
+            'confidence'] if 'confidence' in pattern else 100
 
         if 'version' in pattern:
             versions = []
@@ -270,16 +273,8 @@ class Wappalyzer(requests.Session):
     def log(self, message, source, type):
         print('[wappalyzer {}] [{}] {}'.format(type, source, message))
 
-    def getSimple(self):
-        apps = self.analyze(self.data)
-        simple_result = {}
-
-        for appName, app in apps.items():
-            categories = app.props.cats
-            for category_id in categories:
-                category_name = self.db['categories'][str(category_id)]['name'].lower().replace(' ', '-')
-                if category_name not in simple_result:
-                    simple_result.update({category_name: []})
-
-                simple_result[category_name].append(appName)
-        return simple_result
+    def __del__(self):
+        del self.db
+        del self.apps
+        del self.jsPatterns
+        del self.data
