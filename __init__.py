@@ -1,6 +1,8 @@
-import re
+# camelCase naming conventions to match java wappalyzer style
 import json
 import os
+import re
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -40,6 +42,7 @@ class Application(object):
 class Wappalyzer(requests.Session):
     def __init__(self, url, filename='apps.json'):
         super().__init__()
+        self.verify = False
 
         file = os.path.join(os.getcwd(), os.path.dirname(__file__), filename)
         if not os.path.exists(file):
@@ -59,6 +62,7 @@ class Wappalyzer(requests.Session):
         self.data.js = js
         self.data.scripts = [script['src'] for script in
                              BeautifulSoup(self.data.text, 'html.parser').find_all('script', {'src': True})]
+
         self.data.headers = {i.lower(): j for i, j in self.data.headers.items()}
 
     def downloadWappalyzerDB(self, file):
@@ -177,7 +181,8 @@ class Wappalyzer(requests.Session):
                             checkImplies = True
 
                         for id in app.confidence:
-                            apps[implied['string']].confidence[id + ' implied by ' + appName] = app.confidence[id] * int(
+                            apps[implied['string']].confidence[id + ' implied by ' + appName] = app.confidence[
+                                                                                                    id] * int(
                                 int(implied['confidence']) / 100 if 'confidence' in implied else 1)
 
     def analyzeUrl(self, app: Application, url):
@@ -204,7 +209,6 @@ class Wappalyzer(requests.Session):
     def analyzeMeta(self, app, html):
         regex = re.compile('<meta[^>]+>', re.IGNORECASE)
         patterns = self.parsePatterns(app.props.meta)
-        content = ''
         matches = re.findall(regex, html)
         for match in matches:
             for meta in patterns:
@@ -270,8 +274,8 @@ class Wappalyzer(requests.Session):
                 if re.search(pattern['regex'], env):
                     self.addDetected(app, pattern, 'env', env)
 
-    def log(self, message, source, type):
-        print('[wappalyzer {}] [{}] {}'.format(type, source, message))
+    def log(self, message, source, _type):
+        print('[wappalyzer {}] [{}] {}'.format(_type, source, message))
 
     def __del__(self):
         del self.db
